@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Right Loading Planner - Right Logistics</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#19A196">
+  <meta name="description" content="Progressive Web App for 3D Cargo Loading & Container Optimization - Right Logistics Pvt. Ltd.">
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <!-- CDNs (Will be cached by Service Worker for offline use) -->
+  <!-- Three.js (Core 3D Library) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- OrbitControls (Camera navigation helper) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- SheetJS (Excel read/write) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- jsPDF & AutoTable (Client-side PDF report builder) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+  <!-- ======================================================== -->
+  <!-- 1. AUTHENTICATION / LOGIN SCREEN                         -->
+  <!-- ======================================================== -->
+  <div id="auth-screen">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="logo-icon">
+          <i data-lucide="package-open"></i>
+        </div>
+        <h1 class="auth-title">Right Loading Planner</h1>
+        <p class="auth-subtitle">Right Logistics Pvt. Ltd. | Secure Access</p>
+      </div>
+      
+      <form id="auth-form">
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <input type="text" id="username" class="form-input" required placeholder="Enter username (try: admin, ops)">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input type="password" id="password" class="form-input" required placeholder="Enter password (password)">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Simulate Role Login</label>
+          <div class="role-badge-picker">
+            <div class="role-option active" data-role="Admin">Admin</div>
+            <div class="role-option" data-role="Operations">Operations</div>
+            <div class="role-option" data-role="Sales">Sales</div>
+            <div class="role-option" data-role="Customer">Customer</div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top: 10px;">
+          <span>Secure Sign In</span>
+          <i data-lucide="log-in" style="width:16px;"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 2. MAIN APPLICATION SAAS SHELL                           -->
+  <!-- ======================================================== -->
+  <div id="app-shell" style="display: none;">
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">RL</div>
+        <div class="brand-details">
+          <span class="brand-name">Right Logistics</span>
+          <span class="brand-sub">LOADING PLANNER</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-menu">
+        <a class="nav-item active" data-target="dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+        </a>
+        <a class="nav-item" data-target="shipments">
+          <i data-lucide="ship"></i>
+          <span>Shipment Planner</span>
+        </a>
+        <a class="nav-item" data-target="containers">
+          <i data-lucide="box"></i>
+          <span>Container Library</span>
+        </a>
+        <a class="nav-item" data-target="customers">
+          <i data-lucide="users"></i>
+          <span>Customer Directory</span>
+        </a>
+        <a class="nav-item" data-target="users">
+          <i data-lucide="shield-check"></i>
+          <span>User Directory</span>
+        </a>
+        <a class="nav-item" data-target="settings">
+          <i data-lucide="settings"></i>
+          <span>Settings</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-profile-widget">
+          <div class="user-avatar" id="nav-user-avatar">AD</div>
+          <div class="user-info">
+            <span class="user-name" id="nav-user-name">Admin User</span>
+            <span class="user-role-badge" id="nav-user-role">Admin</span>
+          </div>
+          <button class="btn-logout" id="btn-logout-trigger" title="Log Out">
+            <i data-lucide="log-out" style="width:16px;height:16px;"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT MAIN WORKSPACE -->
+    <main class="main-workspace">
+      <!-- TOP HEADER -->
+      <header class="workspace-header">
+        <div class="header-title-section">
+          <h2 class="header-title" id="active-view-title">Dashboard</h2>
+          <span class="offline-badge" id="offline-network-badge">
+            <i data-lucide="wifi-off" style="width:12px;height:12px;"></i>
+            <span>Offline Mode Active</span>
+          </span>
+        </div>
+
+        <div class="header-actions">
+          <div class="sync-indicator">
+            <div class="sync-dot" id="network-sync-dot"></div>
+            <span id="sync-status-label">Cloud Synced</span>
+          </div>
+          <button class="btn btn-primary" id="btn-quick-new-shipment">
+            <i data-lucide="plus" style="width:16px;"></i>
+            <span>Optimize Shipment</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ======================================================== -->
+      <!-- VIEW: DASHBOARD                                          -->
+      <!-- ======================================================== -->
+      <div id="view-dashboard" class="view-container active">
+        <div class="dashboard-metrics">
+          <div class="metric-card">
+            <div class="metric-info">
+              <span class="metric-label">Total Shipments</span>
+              <span class="metric-value" id="stat-total-shipments">0</span>
+            </div>
+            <div class="metric-icon"><i data-lucide="folders"></i></div>
+          </div>
+          
+          <div class="metric-card">
+            <div class="metric-info">
+              <span class="metric-label">Completed Plans</span>
+              <span class="metric-value" id="stat-completed-plans">0</span>
+            </div>
+            <div class="metric-icon" style="color:var(--success); background-color:#E8F5E9;"><i data-lucide="check-circle-2"></i></div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-info">
+              <span class="metric-label">Containers Planned</span>
+              <span class="metric-value" id="stat-containers-planned">0</span>
+            </div>
+            <div class="metric-icon" style="color:#3498DB; background-color:#EBF5FB;"><i data-lucide="truck"></i></div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-info">
+              <span class="metric-label">Avg Volume Utilization</span>
+              <span class="metric-value" id="stat-avg-utilization">0%</span>
+            </div>
+            <div class="metric-icon" style="color:var(--primary); background-color:var(--primary-pale);"><i data-lucide="percent"></i></div>
+          </div>
+        </div>
+
+        <div class="dashboard-details">
+          <!-- Recent Shipments Table Card -->
+          <div class="card">
+            <div class="card-title-section">
+              <h3 class="card-title">
+                <i data-lucide="clock" style="color:var(--primary);"></i>
+                <span>Recent Loading Plans</span>
+              </h3>
+              <button class="btn btn-outline" id="btn-dashboard-view-all">View All Plans</button>
+            </div>
+            
+            <div class="table-responsive">
+              <table class="custom-table" id="dashboard-recent-table">
+                <thead>
+                  <tr>
+                    <th>Shipment ID</th>
+                    <th>Customer Account</th>
+                    <th>Date</th>
+                    <th>Volume (CBM)</th>
+                    <th>Space Util %</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Filled dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Quick Actions Sidebar Card -->
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-title-section">
+              <h3 class="card-title">
+                <i data-lucide="zap" style="color:var(--warning);"></i>
+                <span>Quick Operations</span>
+              </h3>
+            </div>
+            
+            <div class="quick-actions-list">
+              <button class="action-btn-item" id="qa-new-plan">
+                <div class="action-btn-item-info">
+                  <i data-lucide="file-plus" class="action-btn-icon"></i>
+                  <span>New Load Plan</span>
+                </div>
+                <i data-lucide="chevron-right" style="width:16px;"></i>
+              </button>
+              
+              <button class="action-btn-item" id="qa-download-template">
+                <div class="action-btn-item-info">
+                  <i data-lucide="download" class="action-btn-icon"></i>
+                  <span>Download Excel Template</span>
+                </div>
+                <i data-lucide="chevron-right" style="width:16px;"></i>
+              </button>
+
+              <button class="action-btn-item" id="qa-check-containers">
+                <div class="action-btn-item-info">
+                  <i data-lucide="boxes" class="action-btn-icon"></i>
+                  <span>Inspect Containers</span>
+                </div>
+                <i data-lucide="chevron-right" style="width:16px;"></i>
+              </button>
+
+              <button class="action-btn-item" id="qa-settings">
+                <div class="action-btn-item-info">
+                  <i data-lucide="sliders" class="action-btn-icon"></i>
+                  <span>Configure Settings</span>
+                </div>
+                <i data-lucide="chevron-right" style="width:16px;"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VIEW: SHIPMENTS MANAGEMENT LIST                          -->
+      <!-- ======================================================== -->
+      <div id="view-shipments" class="view-container">
+        <div class="shipment-filter-bar">
+          <div class="search-wrapper">
+            <i data-lucide="search" class="search-icon-svg" style="width:16px;"></i>
+            <input type="text" id="shipment-search-input" class="search-input" placeholder="Search shipments by ID or Customer...">
+          </div>
+
+          <div style="display:flex; gap:15px; align-items:center;">
+            <div class="filter-group">
+              <button class="filter-btn active" data-filter="all">All</button>
+              <button class="filter-btn" data-filter="completed">Completed</button>
+              <button class="filter-btn" data-filter="draft">Drafts</button>
+            </div>
+
+            <div class="view-toggle-group">
+              <button class="view-toggle-btn active" id="view-toggle-card" title="Grid View">
+                <i data-lucide="grid" style="width:16px;height:16px;"></i>
+              </button>
+              <button class="view-toggle-btn" id="view-toggle-table" title="Table View">
+                <i data-lucide="list" style="width:16px;height:16px;"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cards View Grid -->
+        <div class="shipments-grid" id="shipments-cards-container">
+          <!-- Filled dynamically -->
+        </div>
+
+        <!-- Table View List (hidden by default) -->
+        <div class="card" id="shipments-table-card" style="display: none; padding: 20px 0;">
+          <div class="table-responsive">
+            <table class="custom-table" id="shipments-full-table">
+              <thead>
+                <tr>
+                  <th>Shipment ID</th>
+                  <th>Customer</th>
+                  <th>Plan Date</th>
+                  <th>Container</th>
+                  <th>CBM</th>
+                  <th>Weight (kg)</th>
+                  <th>Space Util %</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Filled dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VIEW: SHIPMENT BUILDER (CARGO & DETAILS ENTRY)            -->
+      <!-- ======================================================== -->
+      <div id="view-shipment-builder" class="view-container">
+        <div class="shipment-builder-grid">
+          
+          <!-- LEFT COL: Metadata & Cargo Add Form -->
+          <div style="display:flex; flex-direction:column; gap:25px;">
+            <!-- Cargo Details Info -->
+            <div class="card" style="margin-bottom:0;">
+              <h3 class="card-title" style="margin-bottom:15px;">Shipment Configuration</h3>
+              <input type="hidden" id="builder-db-id" value="">
+              
+              <div class="form-group">
+                <label class="form-label" for="builder-customer">Customer Account</label>
+                <select id="builder-customer" class="form-input" style="padding:10px;">
+                  <!-- Filled dynamically -->
+                </select>
+              </div>
+
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" for="builder-notes">Shipment / Loading Notes</label>
+                <textarea id="builder-notes" class="form-input" rows="2" style="resize:none;" placeholder="Special handling, cargo sequence, etc."></textarea>
+              </div>
+            </div>
+
+            <!-- Excel Import/Bulk Cargo Section -->
+            <div class="card" style="margin-bottom:0;">
+              <h3 class="card-title" style="margin-bottom:12px;">Bulk Cargo Import</h3>
+              
+              <div class="excel-box">
+                <input type="file" id="excel-file-uploader" class="excel-input-file" accept=".xlsx, .xls">
+                <i data-lucide="file-spreadsheet" class="excel-icon"></i>
+                <div class="excel-box-title">Upload Excel File</div>
+                <div class="excel-box-sub">Click or drag standard XLSX cargo sheet</div>
+              </div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <button class="btn btn-outline" id="btn-builder-download-template" style="padding: 8px 16px; font-size:12px;">
+                  <i data-lucide="download" style="width:14px;"></i>
+                  <span>Download Template</span>
+                </button>
+                <span class="excel-box-sub" style="font-weight:600; color:var(--primary);">Data validates automatically</span>
+              </div>
+
+              <!-- Upload error reporting widget -->
+              <div class="error-widget" id="excel-error-log" style="display: none;">
+                <div class="error-widget-title">Import Errors Detected:</div>
+                <ul class="error-list" id="excel-error-list"></ul>
+              </div>
+            </div>
+
+            <!-- Single Cargo Entry Form -->
+            <div class="card" style="margin-bottom:0;">
+              <h3 class="card-title" style="margin-bottom:15px;">Add Cargo Item</h3>
+              <form id="cargo-entry-form">
+                <input type="hidden" id="edit-cargo-idx" value="">
+                
+                <div class="form-group">
+                  <label class="form-label" for="cargo-name">Item Description</label>
+                  <input type="text" id="cargo-name" class="form-input" required placeholder="e.g. Standard Packing Box A">
+                </div>
+
+                <div class="cargo-input-grid">
+                  <div class="form-group">
+                    <label class="form-label" for="cargo-type">Type</label>
+                    <select id="cargo-type" class="form-input">
+                      <option value="Cartons">Cartons</option>
+                      <option value="Crates">Crates</option>
+                      <option value="Pallets">Pallets</option>
+                      <option value="Pipes">Pipes</option>
+                      <option value="Barrels">Barrels</option>
+                      <option value="Machinery">Machinery</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="cargo-qty">Quantity</label>
+                    <input type="number" id="cargo-qty" class="form-input" min="1" required value="10">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="cargo-weight">Weight (kg)</label>
+                    <input type="number" id="cargo-weight" class="form-input" min="0" step="any" required value="15">
+                  </div>
+                </div>
+
+                <div class="cargo-input-grid">
+                  <div class="form-group">
+                    <label class="form-label" for="cargo-length">Length (m)</label>
+                    <input type="number" id="cargo-length" class="form-input" min="0.01" step="0.01" required value="0.6">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="cargo-width">Width (m)</label>
+                    <input type="number" id="cargo-width" class="form-input" min="0.01" step="0.01" required value="0.4">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="cargo-height">Height (m)</label>
+                    <input type="number" id="cargo-height" class="form-input" min="0.01" step="0.01" required value="0.4">
+                  </div>
+                </div>
+
+                <div class="cargo-input-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 15px;">
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label" for="cargo-stackable">Stackable?</label>
+                    <select id="cargo-stackable" class="form-input">
+                      <option value="Yes">Yes (Can stack others on top)</option>
+                      <option value="No">No (Keep on top layer only)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label" for="cargo-tiltable">Tiltable?</label>
+                    <select id="cargo-tiltable" class="form-input">
+                      <option value="No">No (Keep upright)</option>
+                      <option value="Yes">Yes (Can rotate vertically)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="cargo-notes">Item Notes (optional)</label>
+                  <input type="text" id="cargo-notes" class="form-input" placeholder="e.g. Fragile, side-up">
+                </div>
+
+                <button type="submit" class="btn btn-secondary btn-block" id="btn-add-cargo-submit">
+                  <i data-lucide="plus" style="width:16px;"></i>
+                  <span id="btn-add-cargo-text">Add Item to List</span>
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- RIGHT COL: Container Default Settings & Current List Table -->
+          <div style="display:flex; flex-direction:column; gap:25px;">
+            <div class="card" style="flex-grow:1; display:flex; flex-direction:column;">
+              <div class="card-title-section">
+                <h3 class="card-title">
+                  <i data-lucide="shopping-cart" style="color:var(--primary);"></i>
+                  <span>Cargo Items List</span>
+                </h3>
+                <span class="badge badge-completed" id="badge-total-items-qty">0 Items</span>
+              </div>
+
+              <!-- Live Cargo Table List -->
+              <div class="cargo-list-widget" style="flex-grow:1;">
+                <table class="custom-table" style="font-size:12px;">
+                  <thead style="position: sticky; top:0; background:white; z-index:10;">
+                    <tr>
+                      <th>Description</th>
+                      <th>Dims L x W x H</th>
+                      <th>Qty</th>
+                      <th>Wt (kg)</th>
+                      <th>Stack</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="builder-cargo-table-body">
+                    <!-- Filled dynamically -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Optimization Target Config Card -->
+              <div style="background-color:#FAFCFB; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding:16px; margin: 20px 0;">
+                <h4 style="font-size:13px; font-weight:700; margin-bottom:12px; color:var(--secondary);">Optimization Parameters</h4>
+                
+                <div class="cargo-input-grid" style="grid-template-columns: 1.5fr 1fr; margin-bottom:0;">
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label" for="builder-container-preset">Select Target Container</label>
+                    <select id="builder-container-preset" class="form-input">
+                      <!-- Filled dynamically -->
+                    </select>
+                  </div>
+                  
+                  <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; justify-content:center;">
+                    <label class="form-label" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                      <input type="checkbox" id="builder-auto-recommend" style="width:16px; height:16px; accent-color:var(--primary);">
+                      <span style="font-size:12px; font-weight:600;">Auto-Recommend</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1.5fr; gap:15px; margin-top:auto;">
+                <button class="btn btn-outline" id="btn-builder-save-draft">
+                  <i data-lucide="file-text" style="width:16px;"></i>
+                  <span>Save as Draft</span>
+                </button>
+                <button class="btn btn-primary" id="btn-builder-run-packing">
+                  <span>Calculate Load Plan</span>
+                  <i data-lucide="cpu" style="width:16px;"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VIEW: 3D OPTIMIZATION RESULTS                            -->
+      <!-- ======================================================== -->
+      <div id="view-results" class="view-container">
+        <div class="visualizer-split">
+          
+          <!-- LEFT: 3D Interactive Container View -->
+          <div class="card visualizer-canvas-card" style="margin-bottom:0;">
+            <div class="canvas-header">
+              <div style="display:flex; flex-direction:column;">
+                <h3 class="card-title">Interactive 3D Container Planner</h3>
+                <span style="font-size:11px; color:var(--text-muted); margin-top:2px;" id="results-container-sub">Active Loading View</span>
+              </div>
+
+              <div class="view-controls-bar">
+                <button class="btn btn-outline" id="btn-cam-perspective" style="padding:6px 12px; font-size:11px;">Perspective</button>
+                <button class="btn btn-outline" id="btn-cam-top" style="padding:6px 12px; font-size:11px;">Top</button>
+                <button class="btn btn-outline" id="btn-cam-side" style="padding:6px 12px; font-size:11px;">Side</button>
+                <button class="btn btn-outline" id="btn-cam-front" style="padding:6px 12px; font-size:11px;">Front</button>
+              </div>
+            </div>
+
+            <!-- Canvas Mount Point -->
+            <div class="canvas-mount" id="visualizer-canvas-mount">
+              <!-- Visualizer legend overlays -->
+              <div class="visualizer-legend">
+                <div class="legend-item"><span class="legend-color" style="background:#19A196;"></span><span>Cartons</span></div>
+                <div class="legend-item"><span class="legend-color" style="background:#E67E22;"></span><span>Crates</span></div>
+                <div class="legend-item"><span class="legend-color" style="background:#3498DB;"></span><span>Pallets</span></div>
+                <div class="legend-item"><span class="legend-color" style="background:#9B59B6;"></span><span>Pipes</span></div>
+                <div class="legend-item"><span class="legend-color" style="background:#F1C40F;"></span><span>Barrels</span></div>
+                <div class="legend-item"><span class="legend-color" style="background:#E74C3C;"></span><span>Machinery</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Packing Metrics, Container Count, Export Reports -->
+          <div class="optimization-side-col">
+            <!-- Space Utilization gauge -->
+            <div class="summary-gauge">
+              <div class="gauge-value" id="res-space-util">0%</div>
+              <div class="gauge-label">Space Utilization</div>
+            </div>
+
+            <div class="card" style="margin-bottom:0;">
+              <h3 class="card-title" style="margin-bottom:15px; font-size:14px;">Loading Metrics</h3>
+              
+              <div class="metrics-list">
+                <div class="metric-list-row">
+                  <span class="metric-list-label">Recommended Box</span>
+                  <span class="metric-list-val" id="res-box-name">40GP Container</span>
+                </div>
+                <div class="metric-list-row">
+                  <span class="metric-list-label">Containers Needed</span>
+                  <span class="metric-list-val" id="res-box-count">1</span>
+                </div>
+                <div class="metric-list-row">
+                  <span class="metric-list-label">Total Volume (CBM)</span>
+                  <span class="metric-list-val" id="res-total-cbm">0.00 CBM</span>
+                </div>
+                <div class="metric-list-row">
+                  <span class="metric-list-label">Total Weight</span>
+                  <span class="metric-list-val" id="res-total-weight">0.00 kg</span>
+                </div>
+                <div class="metric-list-row">
+                  <span class="metric-list-label">Weight Utilization</span>
+                  <span class="metric-list-val" id="res-weight-util">0%</span>
+                </div>
+                <div class="metric-list-row">
+                  <span class="metric-list-label">Empty Volume</span>
+                  <span class="metric-list-val" id="res-empty-cbm">0.00 CBM</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:0;">
+              <h3 class="card-title" style="margin-bottom:15px; font-size:14px;">Reports & Exporters</h3>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <button class="btn btn-primary btn-block" id="btn-results-download-pdf">
+                  <i data-lucide="file-text" style="width:16px;"></i>
+                  <span>Download PDF Report</span>
+                </button>
+                <button class="btn btn-outline btn-block" id="btn-results-download-list">
+                  <i data-lucide="download" style="width:16px;"></i>
+                  <span>Download Packing List</span>
+                </button>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:auto;">
+              <button class="btn btn-outline" id="btn-results-back">
+                <i data-lucide="arrow-left" style="width:16px;"></i>
+                <span>Back</span>
+              </button>
+              <button class="btn btn-primary" id="btn-results-save-complete">
+                <span>Save & Close</span>
+                <i data-lucide="save" style="width:16px;"></i>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VIEW: CONTAINER LIBRARY Presets & Library Settings       -->
+      <!-- ======================================================== -->
+      <div id="view-containers" class="view-container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+          <h3 class="header-title" style="font-size:15px;">Standard Preset Catalog</h3>
+          <button class="btn btn-primary" id="btn-add-custom-container">Add Custom Container</button>
+        </div>
+
+        <div class="shipments-grid" id="container-library-grid">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VIEW: CUSTOMER MANAGEMENT VIEW                           -->
+      <!-- ======================================================== -->
+      <div id="view-customers" class="view-container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+          <h3 class="header-title" style="font-size:15px;">Customer Accounts Database</h3>
+          <button class="btn btn-primary" id="btn-add-customer-modal-trigger">Add Customer Profile</button>
+        </div>
+
+        <div class="card" style="padding: 20px 0;">
+          <div class="table-responsive">
+            <table class="custom-table" id="customers-full-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Classification</th>
+                  <th>Contact Person</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Address</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Filled dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VIEW: USER MANAGEMENT VIEW                               -->
+      <!-- ======================================================== -->
+      <div id="view-users" class="view-container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+          <h3 class="header-title" style="font-size:15px;">User Roles Directory</h3>
+          <button class="btn btn-primary" id="btn-add-user-modal-trigger">Register System User</button>
+        </div>
+
+        <div class="card" style="padding: 20px 0;">
+          <div class="table-responsive">
+            <table class="custom-table" id="users-full-table">
+              <thead>
+                <tr>
+                  <th>Full Name</th>
+                  <th>Username</th>
+                  <th>Email Address</th>
+                  <th>System Access Role</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Filled dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VIEW: SETTINGS VIEW                                      -->
+      <!-- ======================================================== -->
+      <div id="view-settings" class="view-container">
+        <div class="shipment-builder-grid">
+          
+          <!-- Company Info Panel -->
+          <div class="card">
+            <h3 class="card-title" style="margin-bottom:20px;">
+              <i data-lucide="building" style="color:var(--primary);"></i>
+              <span>Company Branding details</span>
+            </h3>
+
+            <form id="settings-branding-form">
+              <div class="form-group">
+                <label class="form-label" for="set-company-name">Logistics Entity Name</label>
+                <input type="text" id="set-company-name" class="form-input" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="set-company-email">Corporate Email</label>
+                <input type="email" id="set-company-email" class="form-input" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="set-company-phone">Phone Number</label>
+                <input type="text" id="set-company-phone" class="form-input" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="set-company-address">Physical Office Address</label>
+                <textarea id="set-company-address" class="form-input" rows="3" style="resize:none;" required></textarea>
+              </div>
+
+              <button type="submit" class="btn btn-primary">Save Company Profile</button>
+            </form>
+          </div>
+
+          <!-- App Preferences Panel -->
+          <div class="card">
+            <h3 class="card-title" style="margin-bottom:20px;">
+              <i data-lucide="sliders" style="color:var(--primary);"></i>
+              <span>System Configurations</span>
+            </h3>
+
+            <form id="settings-preferences-form">
+              <div class="form-group">
+                <label class="form-label" for="set-unit-pref">Default Measurement System</label>
+                <select id="set-unit-pref" class="form-input">
+                  <option value="metric">Metric (meters / kilograms / CBM)</option>
+                  <option value="imperial" disabled>Imperial (feet / pounds / CFT) - Coming Soon</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="set-default-container">Default Planner Container</label>
+                <select id="set-default-container" class="form-input">
+                  <!-- Loaded dynamically -->
+                </select>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 25px;">
+                <label class="form-label" style="display:inline-flex; align-items:center; gap:8px;">
+                  <input type="checkbox" id="set-pwa-push" checked style="width:16px; height:16px; accent-color:var(--primary);">
+                  <span style="font-size:13px; font-weight:600;">Simulate PWA Push Notifications</span>
+                </label>
+              </div>
+
+              <button type="submit" class="btn btn-primary">Save Configurations</button>
+            </form>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 3. GLOBAL NOTIFICATIONS / TOAST CONTAINERS               -->
+  <!-- ======================================================== -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Floating Raycast Tooltip -->
+  <div class="visualizer-tooltip" id="visualizer-tooltip-div"></div>
+
+  <!-- ======================================================== -->
+  <!-- 4. MODALS DIALOG OVERLAYS                                -->
+  <!-- ======================================================== -->
+  <div class="modal-overlay" id="modal-overlay">
+    
+    <!-- Custom Container Modal -->
+    <div class="modal-card" id="modal-custom-container" style="display: none;">
+      <button class="modal-close"><i data-lucide="x"></i></button>
+      <h3 class="modal-title">Register Custom Shipping Box</h3>
+      <form id="modal-container-form">
+        <div class="form-group">
+          <label class="form-label" for="mc-name">Container Name/Code</label>
+          <input type="text" id="mc-name" class="form-input" required placeholder="e.g. 20HC (High Cube)">
+        </div>
+
+        <div class="cargo-input-grid">
+          <div class="form-group">
+            <label class="form-label" for="mc-length">Length (m)</label>
+            <input type="number" id="mc-length" class="form-input" min="0.1" step="0.001" required value="5.898">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="mc-width">Width (m)</label>
+            <input type="number" id="mc-width" class="form-input" min="0.1" step="0.001" required value="2.352">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="mc-height">Height (m)</label>
+            <input type="number" id="mc-height" class="form-input" min="0.1" step="0.001" required value="2.393">
+          </div>
+        </div>
+
+        <div class="cargo-input-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="form-group">
+            <label class="form-label" for="mc-payload">Max Payload (kg)</label>
+            <input type="number" id="mc-payload" class="form-input" min="1" required value="28200">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="mc-volume">Gross Volume (CBM)</label>
+            <input type="number" id="mc-volume" class="form-input" min="0.1" step="0.1" required value="33.2">
+          </div>
+        </div>
+
+        <div class="cargo-input-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="form-group">
+            <label class="form-label" for="mc-door-w">Door Width (m)</label>
+            <input type="number" id="mc-door-w" class="form-input" min="0.1" step="0.001" required value="2.343">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="mc-door-h">Door Height (m)</label>
+            <input type="number" id="mc-door-h" class="form-input" min="0.1" step="0.001" required value="2.280">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Register Container Preset</button>
+      </form>
+    </div>
+
+    <!-- Customer Modal -->
+    <div class="modal-card" id="modal-custom-customer" style="display: none;">
+      <button class="modal-close"><i data-lucide="x"></i></button>
+      <h3 class="modal-title">Register Customer Profile</h3>
+      <form id="modal-customer-form">
+        <div class="form-group">
+          <label class="form-label" for="cust-name">Company Name</label>
+          <input type="text" id="cust-name" class="form-input" required placeholder="e.g. Apex Global Trading">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cust-type">Classification</label>
+          <select id="cust-type" class="form-input">
+            <option value="Shipper">Shipper (Exporter)</option>
+            <option value="Consignee">Consignee (Importer)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cust-contact">Contact Person</label>
+          <input type="text" id="cust-contact" class="form-input" required placeholder="e.g. Robert Vance">
+        </div>
+
+        <div class="cargo-input-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="form-group">
+            <label class="form-label" for="cust-email">Email Address</label>
+            <input type="email" id="cust-email" class="form-input" required placeholder="e.g. logistics@apex.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cust-phone">Phone Number</label>
+            <input type="text" id="cust-phone" class="form-input" required placeholder="e.g. +91 9999 88888">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cust-address">Office Address</label>
+          <input type="text" id="cust-address" class="form-input" required placeholder="Street, City, State, Country">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Save Customer Profile</button>
+      </form>
+    </div>
+
+    <!-- Register User Modal -->
+    <div class="modal-card" id="modal-custom-user" style="display: none;">
+      <button class="modal-close"><i data-lucide="x"></i></button>
+      <h3 class="modal-title">Register System User</h3>
+      <form id="modal-user-form">
+        <div class="form-group">
+          <label class="form-label" for="us-name">Full Name</label>
+          <input type="text" id="us-name" class="form-input" required placeholder="e.g. Sandra Bullock">
+        </div>
+
+        <div class="cargo-input-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="form-group">
+            <label class="form-label" for="us-username">Username</label>
+            <input type="text" id="us-username" class="form-input" required placeholder="sandra.b">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="us-role">Access Role</label>
+            <select id="us-role" class="form-input">
+              <option value="Admin">Admin</option>
+              <option value="Operations">Operations</option>
+              <option value="Sales">Sales</option>
+              <option value="Customer">Customer</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="us-email">Email Address</label>
+          <input type="email" id="us-email" class="form-input" required placeholder="sandra@rightlogistics.com">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="us-password">Default Password</label>
+          <input type="password" id="us-password" class="form-input" required value="password">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Create System User</button>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- Include App Logic Modules -->
+  <script src="js/db.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/visualizer.js"></script>
+  <script src="js/excel.js"></script>
+  <script src="js/pdf.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('[PWA] Service Worker registered successfully', reg.scope))
+          .catch((err) => console.error('[PWA] Service Worker registration failed', err));
+      });
+    }
+  </script>
+</body>
+</html>
