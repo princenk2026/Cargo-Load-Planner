@@ -121,8 +121,8 @@ maxPayload: 31200,
 doorWidth: 4.000,
 doorHeight: 4.000,
 volume: 31.0,
-description: '20ft Flat Rack'
-}
+description: '20ft Flat Rack',
+},
 
   {
 name: '40FR',
@@ -134,7 +134,7 @@ doorWidth: 4.000,
 doorHeight: 4.000,
 volume: 56.0,
 description: '40ft Flat Rack'
-}
+},
 
   {
     name: '40HC',
