@@ -112,11 +112,126 @@ class RightLoadingDB {
     // 2. Add Default Container Preset Libraries
     // All dimensions in meters, volumes in CBM, weights in kg
     const defaultContainers = [
-      { name: '20GP', length: 5.898, width: 2.352, height: 2.393, maxPayload: 28200, doorWidth: 2.343, doorHeight: 2.280, volume: 33.2, description: '20ft General Purpose' },
-      { name: '40GP', length: 12.032, width: 2.352, height: 2.393, maxPayload: 28800, doorWidth: 2.343, doorHeight: 2.280, volume: 67.7, description: '40ft General Purpose' },
-      { name: '40HC', length: 12.032, width: 2.352, height: 2.698, maxPayload: 28600, doorWidth: 2.343, doorHeight: 2.585, volume: 76.4, description: '40ft High Cube' },
-      { name: '45HC', length: 13.556, width: 2.352, height: 2.698, maxPayload: 27700, doorWidth: 2.343, doorHeight: 2.585, volume: 86.0, description: '45ft High Cube' }
-    ];
+  {
+    name: '20GP',
+    length: 5.898,
+    width: 2.352,
+    height: 2.393,
+    maxPayload: 28200,
+    doorWidth: 2.343,
+    doorHeight: 2.280,
+    volume: 33.2,
+    description: '20ft General Purpose'
+  },
+
+  {
+    name: '40GP',
+    length: 12.032,
+    width: 2.352,
+    height: 2.393,
+    maxPayload: 28800,
+    doorWidth: 2.343,
+    doorHeight: 2.280,
+    volume: 67.7,
+    description: '40ft General Purpose'
+  },
+
+  {
+    name: '40HC',
+    length: 12.032,
+    width: 2.352,
+    height: 2.698,
+    maxPayload: 28600,
+    doorWidth: 2.343,
+    doorHeight: 2.585,
+    volume: 76.4,
+    description: '40ft High Cube'
+  },
+
+  {
+    name: '45HC',
+    length: 13.556,
+    width: 2.352,
+    height: 2.698,
+    maxPayload: 27700,
+    doorWidth: 2.343,
+    doorHeight: 2.585,
+    volume: 86.0,
+    description: '45ft High Cube'
+  },
+
+  {
+    name: '20OT',
+    length: 5.898,
+    width: 2.352,
+    height: 2.348,
+    maxPayload: 28100,
+    doorWidth: 2.343,
+    doorHeight: 2.280,
+    volume: 32.0,
+    description: '20ft Open Top'
+  },
+
+  {
+    name: '40OT',
+    length: 12.032,
+    width: 2.352,
+    height: 2.348,
+    maxPayload: 26700,
+    doorWidth: 2.343,
+    doorHeight: 2.280,
+    volume: 66.0,
+    description: '40ft Open Top'
+  },
+
+  {
+    name: '20FR',
+    length: 5.940,
+    width: 2.350,
+    height: 2.230,
+    maxPayload: 31200,
+    doorWidth: 2.350,
+    doorHeight: 2.230,
+    volume: 31.0,
+    description: '20ft Flat Rack'
+  },
+
+  {
+    name: '40FR',
+    length: 12.130,
+    width: 2.400,
+    height: 1.950,
+    maxPayload: 39000,
+    doorWidth: 2.400,
+    doorHeight: 1.950,
+    volume: 56.0,
+    description: '40ft Flat Rack'
+  },
+
+  {
+    name: '20PLATFORM',
+    length: 6.060,
+    width: 2.440,
+    height: 2.500,
+    maxPayload: 31700,
+    doorWidth: 2.440,
+    doorHeight: 2.500,
+    volume: 36.0,
+    description: '20ft Platform'
+  },
+
+  {
+    name: '40PLATFORM',
+    length: 12.190,
+    width: 2.440,
+    height: 2.500,
+    maxPayload: 40000,
+    doorWidth: 2.440,
+    doorHeight: 2.500,
+    volume: 74.0,
+    description: '40ft Platform'
+  }
+];
     for (const c of defaultContainers) {
       await this.add('containers', c);
     }
