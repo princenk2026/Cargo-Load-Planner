@@ -108,6 +108,12 @@ class PackingEngine {
     let currentWeight = 0;
     let currentCbm = 0;
     
+    // Set effective layout limits based on container type
+    const cType = container.type || 'Standard';
+    const effL = cType === 'Flatbed' ? container.length + 1.5 : container.length; // Allow slight overlength on flatbeds
+    const effW = (cType === 'FlatRack' || cType === 'Flatbed') ? container.width + 1.2 : container.width; // Allow overwidth up to 0.6m each side
+    const effH = (cType === 'OpenTop' || cType === 'FlatRack' || cType === 'Flatbed') ? container.height + 2.5 : container.height; // Allow overheight
+
     // Candidate placement points (x = length axis, y = width axis, z = height axis)
     // We start with the bottom-back-left corner (0, 0, 0)
     let candidatePoints = [{ x: 0, y: 0, z: 0 }];
@@ -142,9 +148,9 @@ class PackingEngine {
 
           // Check if box fits within container walls
           if (
-            pt.x + l <= container.length &&
-            pt.y + w <= container.width &&
-            pt.z + h <= container.height
+            pt.x + l <= effL &&
+            pt.y + w <= effW &&
+            pt.z + h <= effH
           ) {
             // Check overlapping with already placed boxes
             const overlaps = packed.some(p => 
@@ -159,6 +165,12 @@ class PackingEngine {
               const isSupported = this.checkSupportAndStacking(pt.x, pt.y, pt.z, l, w, h, packed);
               
               if (isSupported) {
+                // Determine Out-of-Gauge (OOG) overhang flags
+                const isOOG_OH = (pt.z + h) > container.height;
+                const isOOG_OW = (pt.y + w) > container.width;
+                const isOOG_OL = (pt.x + l) > container.length;
+                const isOOG = isOOG_OH || isOOG_OW || isOOG_OL;
+
                 // Placed successfully!
                 const newBox = {
                   ...box,
@@ -167,7 +179,13 @@ class PackingEngine {
                   z: pt.z,
                   l: l,
                   w: w,
-                  h: h
+                  h: h,
+                  isOOG: isOOG,
+                  oogDetails: isOOG ? [
+                    isOOG_OL ? 'Over-Length' : '',
+                    isOOG_OW ? 'Over-Width' : '',
+                    isOOG_OH ? 'Over-Height' : ''
+                  ].filter(Boolean).join(', ') : ''
                 };
                 packed.push(newBox);
                 currentWeight += box.weight;
@@ -286,12 +304,17 @@ class PackingEngine {
     const filtered = [];
     const eps = 0.001;
 
+    const cType = container.type || 'Standard';
+    const effL = cType === 'Flatbed' ? container.length + 1.5 : container.length;
+    const effW = (cType === 'FlatRack' || cType === 'Flatbed') ? container.width + 1.2 : container.width;
+    const effH = (cType === 'OpenTop' || cType === 'FlatRack' || cType === 'Flatbed') ? container.height + 2.5 : container.height;
+
     for (let pt of points) {
-      // Keep inside container walls
+      // Keep inside container effective boundary walls
       if (
-        pt.x >= 0 && pt.x < container.length - eps &&
-        pt.y >= 0 && pt.y < container.width - eps &&
-        pt.z >= 0 && pt.z < container.height - eps
+        pt.x >= 0 && pt.x < effL - eps &&
+        pt.y >= 0 && pt.y < effW - eps &&
+        pt.z >= 0 && pt.z < effH - eps
       ) {
         // Round coordinates to avoid tiny float differences
         const key = `${pt.x.toFixed(3)},${pt.y.toFixed(3)},${pt.z.toFixed(3)}`;
@@ -315,17 +338,47 @@ class PackingEngine {
   static recommendContainer(boxes, presets) {
     if (presets.length === 0) return null;
 
-    // Calculate total cargo volume and weight
-    let totalVol = 0;
-    let totalWeight = 0;
+    // Detect if cargo list has Out-of-Gauge (OOG) components
+    let hasOverHeight = false;
+    let hasOverWidth = false;
+    let hasOverLength = false;
+
     boxes.forEach(b => {
-      totalVol += b.l * b.w * b.h;
-      totalWeight += b.weight;
+      // Standard dry container height limit is 2.698m
+      if (b.h > 2.698) {
+        hasOverHeight = true;
+      }
+      // Standard dry container width limit is 2.352m
+      // Swap is possible horizontally, check if min horizontal dimension exceeds width
+      const minHoriz = Math.min(b.l, b.w);
+      if (minHoriz > 2.352) {
+        hasOverWidth = true;
+      }
+      // Standard max length limit is 13.556m (45HC)
+      if (b.l > 12.032) {
+        if (Math.min(b.l, b.w) > 2.352 || b.l > 13.556) {
+          hasOverLength = true;
+        }
+      }
     });
 
-    // Filter presets that can fit the total weight
-    let candidates = presets.filter(p => p.maxPayload >= totalWeight);
-    if (candidates.length === 0) candidates = presets; // fallback
+    let targetType = 'Standard';
+    if (hasOverLength || (hasOverWidth && hasOverHeight)) {
+      targetType = 'Flatbed';
+    } else if (hasOverWidth) {
+      targetType = 'FlatRack';
+    } else if (hasOverHeight) {
+      targetType = 'OpenTop';
+    }
+
+    // Filter presets that match the target classification
+    let candidates = presets.filter(p => p.type === targetType);
+    if (candidates.length === 0) {
+      candidates = presets.filter(p => p.type === 'Standard'); // fallback to standard closed
+    }
+    if (candidates.length === 0) {
+      candidates = presets;
+    }
 
     // Sort presets by volume ascending (smallest first)
     candidates.sort((a, b) => {
@@ -334,17 +387,16 @@ class PackingEngine {
       return volA - volB;
     });
 
-    // Test each container preset to see if it can pack everything in 1 container
+    // Test each candidate to see if it can fit everything
     for (let preset of candidates) {
       const res = this.packSingleContainer(boxes, preset);
-      // If all boxes fit in this single container, recommend it!
       if (res.packed.length === boxes.length) {
         return preset;
       }
     }
 
-    // Default to the largest container (45HC or 40HC) if it doesn't fit in smaller ones
-    return presets[presets.length - 1] || presets[0];
+    // Default to the largest container in the selected class
+    return candidates[candidates.length - 1] || presets[presets.length - 1];
   }
 
   /**

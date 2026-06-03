@@ -163,6 +163,7 @@ class ContainerVisualizer {
           Weight: ${cargoData.weight} kg<br>
           Pos (XYZ): ${cargoData.x.toFixed(2)}, ${cargoData.y.toFixed(2)}, ${cargoData.z.toFixed(2)}<br>
           Stackable: ${cargoData.stackable ? 'Yes' : 'No'}
+          ${cargoData.isOOG ? `<br><span style="color:#FF7675; font-weight:700;">OOG: ${cargoData.oogDetails}</span>` : ''}
         `;
       }
     } else {
@@ -212,62 +213,139 @@ class ContainerVisualizer {
       this.controls.update();
     }
 
+    // Set container type
+    const cType = containerPreset.type || 'Standard';
+
     // 1. Draw Container Floor Mesh (sleek grey textured appearance)
     const floorGeo = new THREE.BoxGeometry(cL, 0.05, cW);
-    const floorMat = new THREE.MeshLambertMaterial({ color: 0x34495E }); // dark charcoal floor
+    const floorMat = new THREE.MeshLambertMaterial({ color: cType === 'Flatbed' ? 0x27AE60 : 0x34495E }); // Green deck for flatbed, dark slate for others
     const floorMesh = new THREE.Mesh(floorGeo, floorMat);
     floorMesh.position.set(cL / 2, -0.025, cW / 2);
     floorMesh.receiveShadow = true;
     this.cargoGroup.add(floorMesh);
 
-    // 2. Draw Container Transparent Wall Outline
-    const outerGeo = new THREE.BoxGeometry(cL, cH, cW);
-    
-    // Thin wireframe edges
-    const edges = new THREE.EdgesGeometry(outerGeo);
-    const lineMat = new THREE.LineBasicMaterial({ color: 0x7F8C8D, linewidth: 2 });
-    const wireframe = new THREE.LineSegments(edges, lineMat);
-    wireframe.position.set(cL / 2, cH / 2, cW / 2);
-    this.cargoGroup.add(wireframe);
-
-    // Side panels (semitransparent to allow seeing contents)
+    // 2. Draw Walls/Frames dynamically based on container type
     const wallMat = new THREE.MeshPhysicalMaterial({
       color: 0xBDC3C7,
       transparent: true,
       opacity: 0.1,
       roughness: 0.2,
       metalness: 0.1,
-      side: THREE.BackSide,
+      side: THREE.DoubleSide,
       depthWrite: false
     });
-    const wallsMesh = new THREE.Mesh(outerGeo, wallMat);
-    wallsMesh.position.set(cL / 2, cH / 2, cW / 2);
-    this.cargoGroup.add(wallsMesh);
 
-    // Door Frames (representing the front cargo entry door at X = cL)
-    const doorGeo = new THREE.BoxGeometry(0.02, cH, cW);
-    const doorMat = new THREE.MeshLambertMaterial({
-      color: 0xE74C3C, // Red door markings
-      transparent: true,
-      opacity: 0.2
-    });
-    const doorMesh = new THREE.Mesh(doorGeo, doorMat);
-    doorMesh.position.set(cL, cH / 2, cW / 2);
-    this.cargoGroup.add(doorMesh);
+    if (cType === 'Standard') {
+      // Full enclosed container walls
+      const outerGeo = new THREE.BoxGeometry(cL, cH, cW);
+      const edges = new THREE.EdgesGeometry(outerGeo);
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x7F8C8D, linewidth: 2 });
+      const wireframe = new THREE.LineSegments(edges, lineMat);
+      wireframe.position.set(cL / 2, cH / 2, cW / 2);
+      this.cargoGroup.add(wireframe);
+
+      const wallsMesh = new THREE.Mesh(outerGeo, wallMat);
+      wallsMesh.position.set(cL / 2, cH / 2, cW / 2);
+      this.cargoGroup.add(wallsMesh);
+
+      // Red door marking/frames at X = cL
+      const doorGeo = new THREE.BoxGeometry(0.02, cH, cW);
+      const doorMat = new THREE.MeshLambertMaterial({ color: 0xE74C3C, transparent: true, opacity: 0.2 });
+      const doorMesh = new THREE.Mesh(doorGeo, doorMat);
+      doorMesh.position.set(cL, cH / 2, cW / 2);
+      this.cargoGroup.add(doorMesh);
+
+    } else if (cType === 'OpenTop') {
+      // Open Top container - draw floor, side walls, and back wall, but no roof
+      // Outer wireframe outline (bottom and sides only)
+      const wireGeo = new THREE.BoxGeometry(cL, cH, cW);
+      const edges = new THREE.EdgesGeometry(wireGeo);
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x7F8C8D, linewidth: 2 });
+      const wireframe = new THREE.LineSegments(edges, lineMat);
+      wireframe.position.set(cL / 2, cH / 2, cW / 2);
+      this.cargoGroup.add(wireframe);
+
+      // Left Wall
+      const leftGeo = new THREE.BoxGeometry(cL, cH, 0.02);
+      const leftMesh = new THREE.Mesh(leftGeo, wallMat);
+      leftMesh.position.set(cL / 2, cH / 2, -0.01);
+      this.cargoGroup.add(leftMesh);
+
+      // Right Wall
+      const rightGeo = new THREE.BoxGeometry(cL, cH, 0.02);
+      const rightMesh = new THREE.Mesh(rightGeo, wallMat);
+      rightMesh.position.set(cL / 2, cH / 2, cW + 0.01);
+      this.cargoGroup.add(rightMesh);
+
+      // Back Wall
+      const backGeo = new THREE.BoxGeometry(0.02, cH, cW);
+      const backMesh = new THREE.Mesh(backGeo, wallMat);
+      backMesh.position.set(-0.01, cH / 2, cW / 2);
+      this.cargoGroup.add(backMesh);
+
+      // Door Frames (Front posts only)
+      const postGeo = new THREE.BoxGeometry(0.05, cH, 0.05);
+      const postMat = new THREE.MeshLambertMaterial({ color: 0xE74C3C });
+      
+      const leftPost = new THREE.Mesh(postGeo, postMat);
+      leftPost.position.set(cL, cH / 2, 0);
+      this.cargoGroup.add(leftPost);
+
+      const rightPost = new THREE.Mesh(postGeo, postMat);
+      rightPost.position.set(cL, cH / 2, cW);
+      this.cargoGroup.add(rightPost);
+
+    } else if (cType === 'FlatRack') {
+      // Flat Rack container - solid end walls, no side walls, no roof
+      const endWallGeo = new THREE.BoxGeometry(0.08, cH, cW);
+      const endWallMat = new THREE.MeshLambertMaterial({ color: 0x7F8C8D });
+      
+      // Back end wall
+      const backWall = new THREE.Mesh(endWallGeo, endWallMat);
+      backWall.position.set(-0.04, cH / 2, cW / 2);
+      this.cargoGroup.add(backWall);
+
+      // Front end wall
+      const frontWall = new THREE.Mesh(endWallGeo, endWallMat);
+      frontWall.position.set(cL + 0.04, cH / 2, cW / 2);
+      this.cargoGroup.add(frontWall);
+
+      // Draw thin bottom side rail bars
+      const railGeo = new THREE.BoxGeometry(cL, 0.1, 0.05);
+      const railMat = new THREE.MeshLambertMaterial({ color: 0xE74C3C }); // Red warning side rails
+      
+      const leftRail = new THREE.Mesh(railGeo, railMat);
+      leftRail.position.set(cL / 2, 0.05, -0.025);
+      this.cargoGroup.add(leftRail);
+
+      const rightRail = new THREE.Mesh(railGeo, railMat);
+      rightRail.position.set(cL / 2, 0.05, cW + 0.025);
+      this.cargoGroup.add(rightRail);
+
+    } else if (cType === 'Flatbed') {
+      // Flatbed trailer deck - no walls at all. We just draw the floor and some warning hazard tape decals
+      const hazardGeo = new THREE.BoxGeometry(cL, 0.06, 0.05);
+      const hazardMat = new THREE.MeshLambertMaterial({ color: 0xF1C40F }); // Yellow safety outline
+      
+      const leftDecal = new THREE.Mesh(hazardGeo, hazardMat);
+      leftDecal.position.set(cL / 2, 0.03, -0.025);
+      this.cargoGroup.add(leftDecal);
+
+      const rightDecal = new THREE.Mesh(hazardGeo, hazardMat);
+      rightDecal.position.set(cL / 2, 0.03, cW + 0.025);
+      this.cargoGroup.add(rightDecal);
+    }
 
     // 3. Draw Cargo Packed Boxes
     packedItems.forEach(box => {
       // Mesh Geometry (dimensions: l = X length, h = Z height, w = Y width)
-      // Note: Three.js axes map to: Length along X, Height along Y, Width along Z
-      // Let's map our Packing Engine coordinates:
-      // Engine X -> Three.js X (length)
-      // Engine Y -> Three.js Z (width)
-      // Engine Z -> Three.js Y (height)
       const boxGeo = new THREE.BoxGeometry(box.l, box.h, box.w);
+      
+      // If item is Out-of-Gauge, make it slightly translucent red/orange warning color or keep original color but highlight outline
       const boxMat = new THREE.MeshLambertMaterial({
-        color: new THREE.Color(box.color || '#19A196'),
+        color: new THREE.Color(box.isOOG ? '#E67E22' : box.color || '#19A196'),
         transparent: true,
-        opacity: 0.85
+        opacity: box.isOOG ? 0.75 : 0.85
       });
       const mesh = new THREE.Mesh(boxGeo, boxMat);
       
@@ -282,9 +360,13 @@ class ContainerVisualizer {
       // Link data for tooltip
       mesh.userData = box;
 
-      // Add a thin edge wireframe around each cargo mesh to separate them visually
+      // Add a wireframe outline. If OOG, draw a thicker red alert border outline
       const innerEdges = new THREE.EdgesGeometry(boxGeo);
-      const edgeLineMat = new THREE.LineBasicMaterial({ color: 0x2C3E50, linewidth: 1.5 });
+      const edgeColor = box.isOOG ? 0xE74C3C : 0x2C3E50;
+      const edgeLineMat = new THREE.LineBasicMaterial({ 
+        color: edgeColor, 
+        linewidth: box.isOOG ? 3 : 1.5 
+      });
       const edgeLines = new THREE.LineSegments(innerEdges, edgeLineMat);
       edgeLines.name = 'outline';
       mesh.add(edgeLines);

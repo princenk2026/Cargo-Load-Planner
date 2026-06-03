@@ -699,6 +699,37 @@ class AppController {
     document.getElementById('res-weight-util').innerText = `${weightUtil}%`;
     document.getElementById('res-empty-cbm').innerText = `${Math.max(0, emptyVol).toFixed(2)} CBM`;
 
+    // Detect and display OOG (Out of Gauge) status
+    let hasOOG = false;
+    let oogTypes = new Set();
+    if (res.containers) {
+      res.containers.forEach(c => {
+        if (c.packedItems) {
+          c.packedItems.forEach(item => {
+            if (item.isOOG) {
+              hasOOG = true;
+              if (item.oogDetails) {
+                item.oogDetails.split(',').forEach(d => {
+                  const trimmed = d.trim();
+                  if (trimmed) oogTypes.add(trimmed);
+                });
+              }
+            }
+          });
+        }
+      });
+    }
+
+    const gaugeValEl = document.getElementById('res-gauge-status');
+    if (gaugeValEl) {
+      if (hasOOG) {
+        const typesStr = Array.from(oogTypes).join(', ');
+        gaugeValEl.innerHTML = `<span class="badge" style="background-color:#FCE8E6; color:#A51D24; border: 1px solid #F7C8C5; font-weight:700; font-size:11px; padding:2px 8px; border-radius:4px;">OOG - ${typesStr || 'Out-of-Gauge'}</span>`;
+      } else {
+        gaugeValEl.innerHTML = `<span class="badge" style="background-color:#E6F4EA; color:#137333; border: 1px solid #CEEAD6; font-weight:700; font-size:11px; padding:2px 8px; border-radius:4px;">In-Gauge</span>`;
+      }
+    }
+
     document.getElementById('results-container-sub').innerText = `3D View: Packed container 1 of ${containerCount}`;
 
     // Initialize/Render 3D Container Planner Canvas
@@ -912,6 +943,9 @@ class AppController {
         <td>${u.email}</td>
         <td><span class="badge badge-completed" style="background-color:var(--primary-pale); color:var(--primary-dark);">${u.role}</span></td>
         <td><span class="badge badge-completed">Active</span></td>
+        <td>
+          <button class="btn btn-outline btn-icon" onclick="app.editUserProfile(${u.id})" title="Edit Credentials"><i data-lucide="edit-3"></i></button>
+        </td>
       `;
       tbody.appendChild(tr);
     });
@@ -925,6 +959,30 @@ class AppController {
     await dbInstance.add('users', user);
     this.showToast(`User ${user.name} created.`, 'success');
     this.setupUsersView();
+  }
+
+  async editUserProfile(userId) {
+    const user = this.usersList.find(u => u.id === userId);
+    if (!user) {
+      this.showToast('User not found.', 'error');
+      return;
+    }
+    
+    document.getElementById('edit-user-id').value = user.id;
+    document.getElementById('eu-name').value = user.name;
+    document.getElementById('eu-username').value = user.username;
+    document.getElementById('eu-role').value = user.role;
+    document.getElementById('eu-email').value = user.email;
+    document.getElementById('eu-password').value = user.password;
+    
+    // Non-admins cannot change access role
+    if (this.currentUser.role !== 'Admin') {
+      document.getElementById('eu-role').setAttribute('disabled', 'true');
+    } else {
+      document.getElementById('eu-role').removeAttribute('disabled');
+    }
+
+    this.openModal('modal-edit-profile');
   }
 
   // 8. Settings Config
@@ -1136,6 +1194,21 @@ class AppController {
       this.showToast('Secure sign out successful.', 'success');
     });
 
+    // Edit Profile Trigger (Sidebar widget)
+    document.getElementById('btn-profile-edit-trigger').addEventListener('click', () => {
+      if (this.currentUser && this.currentUser.id) {
+        this.editUserProfile(this.currentUser.id);
+      } else {
+        // Look up by username in database to get the ID, or fallback
+        const user = this.usersList.find(u => u.username.toLowerCase() === this.currentUser.username.toLowerCase());
+        if (user) {
+          this.editUserProfile(user.id);
+        } else {
+          this.showToast('Demo account credentials cannot be updated. Register a system user to edit credentials.', 'warning');
+        }
+      }
+    });
+
     // 2. Auth Login Form Submission
     document.getElementById('auth-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1330,6 +1403,7 @@ class AppController {
       
       const cont = {
         name: document.getElementById('mc-name').value.trim(),
+        type: document.getElementById('mc-type').value,
         length: parseFloat(document.getElementById('mc-length').value),
         width: parseFloat(document.getElementById('mc-width').value),
         height: parseFloat(document.getElementById('mc-height').value),
@@ -1384,6 +1458,73 @@ class AppController {
       this.saveSystemUser(user);
       this.closeModals();
       document.getElementById('modal-user-form').reset();
+    });
+
+    // Edit User modal submit
+    document.getElementById('modal-edit-user-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const idVal = document.getElementById('edit-user-id').value;
+      if (!idVal) return;
+      const id = parseInt(idVal);
+      
+      const name = document.getElementById('eu-name').value.trim();
+      const username = document.getElementById('eu-username').value.trim();
+      const role = document.getElementById('eu-role').value;
+      const email = document.getElementById('eu-email').value.trim();
+      const password = document.getElementById('eu-password').value;
+      
+      // Load user list to check uniqueness
+      await this.loadAppConfigs();
+      
+      const duplicate = this.usersList.find(u => u.username.toLowerCase() === username.toLowerCase() && u.id !== id);
+      if (duplicate) {
+        this.showToast('Username already taken.', 'error');
+        return;
+      }
+      
+      const updatedUser = {
+        id,
+        name,
+        username,
+        role,
+        email,
+        password
+      };
+      
+      try {
+        await dbInstance.put('users', updatedUser);
+        this.showToast('Credentials updated successfully.', 'success');
+        this.closeModals();
+        
+        // If current user updated their own profile
+        if (this.currentUser && (this.currentUser.id === id || this.currentUser.username.toLowerCase() === username.toLowerCase())) {
+          this.currentUser = updatedUser;
+          localStorage.setItem('rl_planner_session', JSON.stringify(updatedUser));
+          
+          // Refresh navbar UI
+          document.getElementById('nav-user-name').innerText = name;
+          document.getElementById('nav-user-role').innerText = role;
+          const initials = name
+            .split(' ')
+            .map(n => n[0])
+            .join('')
+            .substring(0, 2)
+            .toUpperCase();
+          document.getElementById('nav-user-avatar').innerText = initials;
+          
+          // Re-apply role restrictions in case role changed
+          this.applyRoleRestrictions();
+        }
+        
+        // Refresh User Directory view
+        if (this.currentView === 'users') {
+          await this.setupUsersView();
+        }
+      } catch (err) {
+        console.error(err);
+        this.showToast('Failed to update credentials.', 'error');
+      }
     });
 
     // Settings Submit

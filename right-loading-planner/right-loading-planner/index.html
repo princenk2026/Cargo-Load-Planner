@@ -112,6 +112,9 @@
             <span class="user-name" id="nav-user-name">Admin User</span>
             <span class="user-role-badge" id="nav-user-role">Admin</span>
           </div>
+          <button class="btn-logout" id="btn-profile-edit-trigger" title="Edit Credentials" style="margin-right: 5px;">
+            <i data-lucide="edit-3" style="width:14px;height:14px;"></i>
+          </button>
           <button class="btn-logout" id="btn-logout-trigger" title="Log Out">
             <i data-lucide="log-out" style="width:16px;height:16px;"></i>
           </button>
@@ -593,6 +596,10 @@
                   <span class="metric-list-label">Empty Volume</span>
                   <span class="metric-list-val" id="res-empty-cbm">0.00 CBM</span>
                 </div>
+                <div class="metric-list-row">
+                  <span class="metric-list-label">Gauge Status</span>
+                  <span class="metric-list-val" id="res-gauge-status">In-Gauge</span>
+                </div>
               </div>
             </div>
 
@@ -689,6 +696,7 @@
                   <th>Email Address</th>
                   <th>System Access Role</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -795,9 +803,20 @@
       <button class="modal-close"><i data-lucide="x"></i></button>
       <h3 class="modal-title">Register Custom Shipping Box</h3>
       <form id="modal-container-form">
-        <div class="form-group">
-          <label class="form-label" for="mc-name">Container Name/Code</label>
-          <input type="text" id="mc-name" class="form-input" required placeholder="e.g. 20HC (High Cube)">
+        <div class="cargo-input-grid" style="grid-template-columns: 1.5fr 1fr; margin-bottom: 15px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="mc-name">Container Name/Code</label>
+            <input type="text" id="mc-name" class="form-input" required placeholder="e.g. 20HC (High Cube)">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="mc-type">Type</label>
+            <select id="mc-type" class="form-input">
+              <option value="Standard">Standard Closed</option>
+              <option value="OpenTop">Open Top</option>
+              <option value="FlatRack">Flat Rack</option>
+              <option value="Flatbed">Flatbed Trailer</option>
+            </select>
+          </div>
         </div>
 
         <div class="cargo-input-grid">
@@ -921,6 +940,48 @@
         </div>
 
         <button type="submit" class="btn btn-primary btn-block">Create System User</button>
+      </form>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div class="modal-card" id="modal-edit-profile" style="display: none;">
+      <button class="modal-close"><i data-lucide="x"></i></button>
+      <h3 class="modal-title">Edit User Credentials</h3>
+      <form id="modal-edit-user-form">
+        <input type="hidden" id="edit-user-id" value="">
+        
+        <div class="form-group">
+          <label class="form-label" for="eu-name">Full Name</label>
+          <input type="text" id="eu-name" class="form-input" required placeholder="e.g. John Doe">
+        </div>
+
+        <div class="cargo-input-grid" style="grid-template-columns: 1.5fr 1fr;">
+          <div class="form-group">
+            <label class="form-label" for="eu-username">Username</label>
+            <input type="text" id="eu-username" class="form-input" required placeholder="john.doe">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="eu-role">Access Role</label>
+            <select id="eu-role" class="form-input">
+              <option value="Admin">Admin</option>
+              <option value="Operations">Operations</option>
+              <option value="Sales">Sales</option>
+              <option value="Customer">Customer</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="eu-email">Email Address</label>
+          <input type="email" id="eu-email" class="form-input" required placeholder="john@rightlogistics.com">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="eu-password">Password</label>
+          <input type="password" id="eu-password" class="form-input" required placeholder="Enter new password">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Save Credentials</button>
       </form>
     </div>
 
