@@ -112,29 +112,29 @@ class RightLoadingDB {
     // 2. Add Default Container Preset Libraries
     // All dimensions in meters, volumes in CBM, weights in kg
     const defaultContainers = [
-  {
-    name: '20GP',
-    length: 5.898,
-    width: 2.352,
-    height: 2.393,
-    maxPayload: 28200,
-    doorWidth: 2.343,
-    doorHeight: 2.280,
-    volume: 33.2,
-    description: '20ft General Purpose'
-  },
+ {
+name: '20FR',
+length: 5.940,
+width: 4.000,
+height: 4.000,
+maxPayload: 31200,
+doorWidth: 4.000,
+doorHeight: 4.000,
+volume: 31.0,
+description: '20ft Flat Rack'
+}
 
   {
-    name: '40GP',
-    length: 12.032,
-    width: 2.352,
-    height: 2.393,
-    maxPayload: 28800,
-    doorWidth: 2.343,
-    doorHeight: 2.280,
-    volume: 67.7,
-    description: '40ft General Purpose'
-  },
+name: '40FR',
+length: 12.130,
+width: 4.000,
+height: 4.000,
+maxPayload: 39000,
+doorWidth: 4.000,
+doorHeight: 4.000,
+volume: 56.0,
+description: '40ft Flat Rack'
+}
 
   {
     name: '40HC',
@@ -187,8 +187,8 @@ class RightLoadingDB {
   {
     name: '20FR',
     length: 5.940,
-    width: 2.350,
-    height: 2.230,
+    width: 4.000,
+    height: 4.000,
     maxPayload: 31200,
     doorWidth: 2.350,
     doorHeight: 2.230,
@@ -199,8 +199,8 @@ class RightLoadingDB {
   {
     name: '40FR',
     length: 12.130,
-    width: 2.400,
-    height: 1.950,
+    width: 4.000,
+    height: 4.000,
     maxPayload: 39000,
     doorWidth: 2.400,
     doorHeight: 1.950,
