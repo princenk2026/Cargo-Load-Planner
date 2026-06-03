@@ -316,15 +316,48 @@ class PackingEngine {
     if (presets.length === 0) return null;
 
     // Calculate total cargo volume and weight
-    let totalVol = 0;
-    let totalWeight = 0;
-    boxes.forEach(b => {
-      totalVol += b.l * b.w * b.h;
-      totalWeight += b.weight;
-    });
+   let totalVol = 0;
+let totalWeight = 0;
+
+let maxLength = 0;
+let maxWidth = 0;
+let maxHeight = 0;
+
+boxes.forEach(b => {
+    totalVol += b.l * b.w * b.h;
+    totalWeight += b.weight;
+
+    maxLength = Math.max(maxLength, b.l);
+    maxWidth = Math.max(maxWidth, b.w);
+    maxHeight = Math.max(maxHeight, b.h);
+});
 
     // Filter presets that can fit the total weight
     let candidates = presets.filter(p => p.maxPayload >= totalWeight);
+
+// Real logistics container selection
+
+if (maxWidth > 3.5) {
+    candidates = candidates.filter(p =>
+        p.name.includes('PLATFORM')
+    );
+}
+else if (maxWidth > 2.35) {
+    candidates = candidates.filter(p =>
+        p.name.includes('FR')
+    );
+}
+else if (maxHeight > 2.69) {
+    candidates = candidates.filter(p =>
+        p.name.includes('OT')
+    );
+}
+else if (maxHeight > 2.39) {
+    candidates = candidates.filter(p =>
+        p.name.includes('HC') ||
+        p.name.includes('OT')
+    );
+}
     if (candidates.length === 0) candidates = presets; // fallback
 
     // Sort presets by volume ascending (smallest first)
