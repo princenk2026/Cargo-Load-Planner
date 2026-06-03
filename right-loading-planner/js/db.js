@@ -6,7 +6,7 @@
 class RightLoadingDB {
   constructor() {
     this.dbName = 'RightLoadingPlannerDB';
-    this.dbVersion = 1;
+    this.dbVersion = 2;
     this.db = null;
   }
 
